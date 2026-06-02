@@ -37,6 +37,33 @@
         <PingetCliExecutablePath>$(PingetCliPackageNativePath)\pinget.exe</PingetCliExecutablePath>
     </PropertyGroup>
 
+    <!-- macOS Debug: build straight into a .app bundle so the Dock icon (and its Default/Dark/
+         Tinted/Clear styling) is provided by the system from the bundle's AppIcon, exactly like a
+         packaged release. Without this a bare-exe dev run has no bundle and shows a blank icon. -->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(Configuration)' == 'Debug'">
+        <MacAppBundleDir>$(MSBuildProjectDirectory)/bin/$(Configuration)/$(TargetFramework)/UniGetUI.app</MacAppBundleDir>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <OutputPath>$(MacAppBundleDir)/Contents/MacOS/</OutputPath>
+    </PropertyGroup>
+
+    <Target Name="AssembleMacDebugAppBundle" AfterTargets="Build"
+            Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(Configuration)' == 'Debug'">
+        <PropertyGroup>
+            <_MacBundleContents>$(MacAppBundleDir)/Contents</_MacBundleContents>
+            <_MacScriptsDir>$(MSBuildProjectDirectory)/../../scripts/macos</_MacScriptsDir>
+        </PropertyGroup>
+        <MakeDir Directories="$(_MacBundleContents)/Resources" />
+        <!-- Info.plist (declares CFBundleIconName=AppIcon); version is a dev placeholder. -->
+        <Exec Command="sed 's|@VERSION@|0.0.0-dev|g' '$(_MacScriptsDir)/Info.plist' &gt; '$(_MacBundleContents)/Info.plist'" />
+        <!-- Static .icns fallback (CFBundleIconFile) for macOS &lt; 26. -->
+        <Copy SourceFiles="$(_MacScriptsDir)/UniGetUI.icns" DestinationFolder="$(_MacBundleContents)/Resources" />
+        <!-- Compile the Icon Composer icon into Assets.car (+ AppIcon.icns). Needs full Xcode's
+             actool; if it is unavailable the build still succeeds (the icon is just absent). -->
+        <Exec Command="xcrun actool '$(_MacScriptsDir)/AppIcon.icon' --compile '$(_MacBundleContents)/Resources' --app-icon AppIcon --output-partial-info-plist '$(IntermediateOutputPath)appicon-partial.plist' --platform macosx --minimum-deployment-target 12.0 --notices --warnings"
+              ContinueOnError="true" />
+    </Target>
+
     <PropertyGroup Condition="'$(EnableAvaloniaDiagnostics)' == 'true'">
         <DefineConstants>$(DefineConstants);AVALONIA_DIAGNOSTICS_ENABLED</DefineConstants>
     </PropertyGroup>
@@ -82,10 +109,10 @@
     </Target>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.0.3" />
+        <PackageReference Include="Avalonia" Version="12.0.4" />
         <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.0.3" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
         <PackageReference Include="Devolutions.AvaloniaTheme.DevExpress" Version="2026.3.13" />
         <PackageReference Include="Devolutions.AvaloniaTheme.MacOS" Version="2026.3.13" />
         <PackageReference Include="Devolutions.AvaloniaTheme.Linux" Version="2026.3.11" />
@@ -136,7 +163,7 @@
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_orange_white.ico" Link="Assets\tray_orange_white.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_turquoise_black.ico" Link="Assets\tray_turquoise_black.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_turquoise_white.ico" Link="Assets\tray_turquoise_white.ico" />
-        <!-- Legacy (pre-2026 redesign) tray icons, used when Settings.K.UseLegacyTrayIcon is on -->
+        <!-- Legacy (pre-2026 redesign) tray icons, used when the tray icon style is set to "legacy" -->
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_empty_black_legacy.ico" Link="Assets\tray_empty_black_legacy.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_empty_white_legacy.ico" Link="Assets\tray_empty_white_legacy.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_blue_black_legacy.ico" Link="Assets\tray_blue_black_legacy.ico" />
@@ -147,6 +174,19 @@
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_orange_white_legacy.ico" Link="Assets\tray_orange_white_legacy.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_turquoise_black_legacy.ico" Link="Assets\tray_turquoise_black_legacy.ico" />
         <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_turquoise_white_legacy.ico" Link="Assets\tray_turquoise_white_legacy.ico" />
+        <!-- Monochrome composite tray icons: monochrome base glyph (white for a dark taskbar/menu
+             bar, black for a light one) with the colour-coded status dot preserved. macOS menu-bar
+             icons can't be partially tinted, so these are pre-composited and drawn non-template. -->
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_empty_dark.ico" Link="Assets\tray_monochrome_empty_dark.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_empty_light.ico" Link="Assets\tray_monochrome_empty_light.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_blue_dark.ico" Link="Assets\tray_monochrome_blue_dark.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_blue_light.ico" Link="Assets\tray_monochrome_blue_light.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_green_dark.ico" Link="Assets\tray_monochrome_green_dark.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_green_light.ico" Link="Assets\tray_monochrome_green_light.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_orange_dark.ico" Link="Assets\tray_monochrome_orange_dark.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_orange_light.ico" Link="Assets\tray_monochrome_orange_light.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_turquoise_dark.ico" Link="Assets\tray_monochrome_turquoise_dark.ico" />
+        <AvaloniaResource Include="..\UniGetUI\Assets\Images\tray_monochrome_turquoise_light.ico" Link="Assets\tray_monochrome_turquoise_light.ico" />
         <AvaloniaResource Remove="Infrastructure\**" />
     </ItemGroup>
 
@@ -163,6 +203,9 @@
       <Compile Include="Infrastructure\AppRestartHelper.cs" />
       <Compile Include="Infrastructure\WindowsAppNotificationBridge.cs" />
       <Compile Include="Infrastructure\TrayService.cs" />
+      <Compile Include="Infrastructure\MicaWindowHelper.cs" />
+      <Compile Include="Infrastructure\EntrancePageTransition.cs" />
+      <Compile Include="Infrastructure\DirectionalSlideTransition.cs" />
       <Compile Include="Infrastructure\MacOsNotificationBridge.cs" />
       <Compile Include="Infrastructure\Secrets.cs" />
        <Compile Include="Infrastructure\AsyncCommand.cs" />

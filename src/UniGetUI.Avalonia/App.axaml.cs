@@ -1,9 +1,11 @@
+using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Styling;
 using Avalonia.Threading;
 #if AVALONIA_DIAGNOSTICS_ENABLED
@@ -24,9 +26,32 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+
+        // Windows 11 Mica look is opt-in per environment: only merge the translucent
+        // surface overrides when Mica is actually usable (Win11 + transparency on).
+        // macOS, Linux, Windows 10, and transparency-off all keep the solid Styles.Common look.
+        if (MicaWindowHelper.IsMicaEnabled())
+            ApplyWindowsMicaStyling();
 #if AVALONIA_DIAGNOSTICS_ENABLED
         this.AttachDeveloperTools();
 #endif
+    }
+
+    // ResourceInclude is flagged with RequiresUnreferencedCode because, in general, it can load
+    // resources from other assemblies that trimming might remove. Styles.WindowsMica.axaml is an
+    // avares resource embedded in THIS assembly, so it is never trimmed — the warning is safe to
+    // suppress here. (It can't be declared in XAML because the merge is conditional at runtime.)
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Styles.WindowsMica.axaml is an avares resource in this assembly and is not trimmed.")]
+    private void ApplyWindowsMicaStyling()
+    {
+        Resources.MergedDictionaries.Add(new ResourceInclude((Uri?)null)
+        {
+            Source = new Uri("avares://UniGetUI.Avalonia/Assets/Styles/Styles.WindowsMica.axaml")
+        });
+        // Give flyouts/menus/tooltips a native acrylic backdrop (DWM) so they blur + tint
+        // from behind and adapt to the theme.
+        MicaWindowHelper.EnableAcrylicPopups();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -81,11 +106,11 @@ public partial class App : Application
     {
         if (OperatingSystem.IsMacOS())
         {
+            // The Dock icon (incl. Default/Dark/Tinted/Clear styling) is provided by the .app bundle's
+            // AppIcon (scripts/macos/AppIcon.icon → Assets.car, via CFBundleIconName) and rendered by
+            // the system — for packaged releases and for Debug builds, which also build into a .app
+            // (see UniGetUI.Avalonia.csproj). There is nothing to do at runtime.
             ProcessEnvironmentConfigurator.PrepareForCurrentPlatform();
-            using var stream = AssetLoader.Open(new Uri("avares://UniGetUI.Avalonia/Assets/icon.png"));
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            MacOsNotificationBridge.SetDockIcon(ms.ToArray());
         }
         else
         {

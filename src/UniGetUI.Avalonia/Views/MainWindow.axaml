@@ -6,6 +6,7 @@
         xmlns:vm="using:UniGetUI.Avalonia.ViewModels"
         xmlns:controls="using:UniGetUI.Avalonia.Views.Controls"
         xmlns:t="using:UniGetUI.Avalonia.MarkupExtensions"
+        xmlns:infra="using:UniGetUI.Avalonia.Infrastructure"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="750"
@@ -20,7 +21,7 @@
         <Grid x:Name="MainContentGrid"
               ColumnDefinitions="Auto,*"
               RowDefinitions="*,4,Auto"
-              Background="{DynamicResource AppWindowBackground}"
+              Background="{DynamicResource MicaPageBackground}"
               Margin="{Binding $parent[Window].WindowDecorationMargin}">
 
             <!-- ── Sidebar (spans all rows) ── -->
@@ -54,12 +55,17 @@
                     <ContentControl Content="{Binding WinGetWarningBanner}"/>
                     <ContentControl Content="{Binding TelemetryWarner}"/>
                 </StackPanel>
-                <ContentControl Grid.Row="1"
+                <TransitioningContentControl Grid.Row="1"
                                 Content="{Binding CurrentPageContent}"
                                 automation:AutomationProperties.AccessibilityView="Control"
                                 automation:AutomationProperties.LandmarkType="{x:Static peers:AutomationLandmarkType.Main}"
                                 HorizontalContentAlignment="Stretch"
-                                VerticalContentAlignment="Stretch"/>
+                                VerticalContentAlignment="Stretch">
+                    <!-- Page-switch animation: fade + subtle slide-up (WinUI Frame entrance feel) -->
+                    <TransitioningContentControl.PageTransition>
+                        <infra:EntrancePageTransition Duration="0:0:0.22" VerticalOffset="28"/>
+                    </TransitioningContentControl.PageTransition>
+                </TransitioningContentControl>
             </Grid>
 
             <!-- ── GridSplitter (only visible when operations are present) ── -->
@@ -244,24 +250,32 @@
                                                 CornerRadius="6"
                                                 ClipToBounds="True"
                                                 VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Orientation="Horizontal" Height="30">
                                                 <Button Content="{Binding ButtonText}"
                                                         Command="{Binding ButtonCommand}"
                                                         automation:AutomationProperties.Name="{Binding ButtonText}"
-                                                        Padding="12,6"
+                                                        Height="30"
+                                                        Padding="14,0"
                                                         CornerRadius="0"
-                                                        FontSize="12"/>
+                                                        FontSize="12"
+                                                        VerticalContentAlignment="Center"
+                                                        HorizontalContentAlignment="Center"/>
                                                 <Border Width="1"
                                                         VerticalAlignment="Stretch"
                                                     automation:AutomationProperties.AccessibilityView="Raw"
                                                         Background="{DynamicResource AppBorderBrush}"
                                                         Opacity="0.3"/>
                                                 <Button Width="32"
-                                                        Padding="4"
+                                                        Height="30"
+                                                        Padding="0"
                                                         CornerRadius="0"
+                                                        VerticalContentAlignment="Center"
+                                                        HorizontalContentAlignment="Center"
                                                     automation:AutomationProperties.Name="{t:Translate More}"
                                                         Flyout="{Binding OpMenu}">
                                                     <TextBlock Text="⋯" FontSize="14"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
                                                                automation:AutomationProperties.AccessibilityView="Raw"/>
                                                 </Button>
                                             </StackPanel>
@@ -298,7 +312,7 @@
 
             <!-- Drag area — sits behind everything so interactive controls still work -->
             <Border Grid.Column="0" Grid.ColumnSpan="3"
-                    Background="{DynamicResource AppTitleBarBackground}"
+                    Background="{DynamicResource MicaPageBackground}"
                     automation:AutomationProperties.AccessibilityView="Raw"
                     IsHitTestVisible="True"
                     PointerPressed="TitleBar_PointerPressed"/>
